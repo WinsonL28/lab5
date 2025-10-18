@@ -16,6 +16,19 @@ const dbConfig = {
 // Create connection
 const connection = mysql.createConnection(dbConfig);
 
+// Create patient table if it doesn't exist
+const createTableQuery = `
+CREATE TABLE IF NOT EXISTS patient (
+  patientid INT(11) AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100),
+  dateOfBirth DATETIME
+) ENGINE=InnoDB;
+`;
+
+connection.query(createTableQuery, (err) => {
+  if (err) console.error('Error creating patient table:', err.message);
+  else console.log('Patient table ready.');
+});
 
 // Utility: Validate query type
 function isSafeQuery(query) {
@@ -53,10 +66,33 @@ const server = http.createServer((req, res) => {
       req.on('data', chunk => body += chunk);
       req.on('end', () => {
         const { query } = parse(body);
+
+        // Handle default insert trigger
+        if (query === 'insert_default_rows') {
+          const insertDefaults = `
+            INSERT INTO patient (name, dateOfBirth) VALUES
+            ('Sara Brown', '1981-01-01'),
+            ('John Smith', '1961-01-01'),
+            ('Jack Ma', '1964-01-01'),
+            ('Elon Musk', '1999-01-01');
+          `;
+          connection.query(insertDefaults, (err, results) => {
+            if (err) {
+              res.writeHead(400);
+              return res.end(JSON.stringify({ error: err.message }));
+            }
+            res.writeHead(200);
+            return res.end(JSON.stringify({ message: 'Default patients inserted', results }));
+          });
+          return;
+        }
+
+        // Validate and execute custom query
         if (!isSafeQuery(query)) {
           res.writeHead(403);
           return res.end(JSON.stringify({ error: 'Only SELECT or INSERT queries allowed' }));
         }
+
         connection.query(query, (err, results) => {
           if (err) {
             res.writeHead(400);
