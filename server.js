@@ -38,6 +38,12 @@ function isSafeQuery(query) {
 
 // Server
 const server = http.createServer((req, res) => {
+
+  connection.query(createTableQuery, (err) => {
+    if (err) console.error('Error creating patient table:', err.message);
+    else console.log('Patient table ready.');
+  });
+  
   const parsedUrl = url.parse(req.url, true);
   const path = parsedUrl.pathname;
   const method = req.method;
